@@ -41,6 +41,13 @@
           <span>Scan &amp; broadcast to Testnet</span>
         </span>
       </button>
+      <button class="nav-btn" onclick="showDepositScreen()" style="background:rgba(16,185,129,0.1); border-color:rgba(16,185,129,0.25);">
+        <span class="icon">💳</span>
+        <span class="label">
+          <span>Deposit Funds</span>
+          <span>Fund wallet from exchange or Pera</span>
+        </span>
+      </button>
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
         <button class="nav-btn-mini" onclick="showScreen('screen-history'); renderHistory()">
           📋 History
@@ -162,6 +169,40 @@
       </div>
 
       <div id="contacts-list" style="margin-top:1.5rem; display:flex; flex-direction:column; gap:0.75rem;"></div>
+    </div>
+  </div>
+
+  <!-- ╔════════════════════════╗ -->
+  <!-- ║  SCREEN F — DEPOSIT   ║ -->
+  <!-- ╚════════════════════════╝ -->
+  <div id="screen-deposit" class="screen">
+    <div class="card">
+      <button class="btn btn-ghost" style="width:auto; margin-bottom:1.25rem;" onclick="showScreen('screen-home')">⬅️ Back</button>
+      <div class="screen-title">Deposit Funds</div>
+      <div class="screen-subtitle" style="margin-bottom:1.5rem;">
+        Send ALGO to this address from any exchange or Pera Wallet.
+        <span class="badge" style="margin-left:0.5rem; background:rgba(16,185,129,0.15); color:var(--success); border-color:rgba(16,185,129,0.3);">RECEIVE</span>
+      </div>
+
+      <!-- QR Code of Public Address -->
+      <div style="display:flex; flex-direction:column; align-items:center; gap:1rem;">
+        <div id="deposit-qr" style="background:#fff; padding:0.75rem; border-radius:var(--radius-sm); display:inline-block;"></div>
+        <p style="font-size:0.75rem; color:var(--muted);">Your Public Wallet Address</p>
+        <div id="deposit-address" style="
+          background:rgba(0,0,0,0.3);
+          border:1px dashed var(--border);
+          border-radius:var(--radius-sm);
+          padding:0.75rem 1rem;
+          font-family:'Courier New',monospace;
+          font-size:0.72rem;
+          word-break:break-all;
+          color:var(--accent);
+          width:100%;
+          text-align:center;
+          cursor:pointer;
+        " onclick="copyDepositAddress()" title="Click to copy"></div>
+        <p style="font-size:0.72rem; color:var(--muted);">Tap address to copy · QR encodes this address only</p>
+      </div>
     </div>
   </div>
 
@@ -483,6 +524,41 @@ function logStatus(msg, type = '') {
   line.textContent = msg;
   log.appendChild(line);
   log.scrollTop = log.scrollHeight;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Screen F: Deposit — show public address + QR
+// ─────────────────────────────────────────────────────────────────
+function showDepositScreen() {
+  showScreen('screen-deposit');
+
+  const addr = dummySender.addr;
+
+  // Render address text
+  document.getElementById('deposit-address').textContent = addr;
+
+  // Render QR code of the public address (cleared first to avoid duplicates)
+  const qrDiv = document.getElementById('deposit-qr');
+  qrDiv.innerHTML = '';
+  new QRCode(qrDiv, {
+    text:         addr,
+    width:        220,
+    height:       220,
+    colorDark:    '#000000',
+    colorLight:   '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M,
+  });
+}
+
+function copyDepositAddress() {
+  const addr = document.getElementById('deposit-address').textContent;
+  navigator.clipboard.writeText(addr).then(() => {
+    const el = document.getElementById('deposit-address');
+    const original = el.textContent;
+    el.textContent  = '✅ Copied!';
+    el.style.color  = 'var(--success)';
+    setTimeout(() => { el.textContent = original; el.style.color = 'var(--accent)'; }, 1500);
+  }).catch(() => alert('Copy failed. Please select and copy the address manually.'));
 }
 
 // ─────────────────────────────────────────────────────────────────
