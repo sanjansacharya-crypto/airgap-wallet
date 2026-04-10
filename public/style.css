@@ -1,0 +1,245 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* ─── Design Tokens ─────────────────────────────────────── */
+:root {
+  --bg:          #060d1a;
+  --bg-card:     rgba(255,255,255,0.05);
+  --border:      rgba(255,255,255,0.09);
+  --text:        #f1f5f9;
+  --muted:       #64748b;
+  --accent:      #38bdf8;
+  --accent-dim:  rgba(56,189,248,0.15);
+  --accent-glow: rgba(56,189,248,0.35);
+  --success:     #10b981;
+  --danger:      #ef4444;
+  --radius:      20px;
+  --radius-sm:   12px;
+}
+
+/* ─── Reset ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ─── Base ───────────────────────────────────────────────── */
+html, body {
+  height: 100%;
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(ellipse at 10% 10%, rgba(56,189,248,0.12) 0%, transparent 55%),
+    radial-gradient(ellipse at 90% 90%, rgba(16,185,129,0.08) 0%, transparent 55%);
+  background-attachment: fixed;
+  color: var(--text);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 1rem;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── App Shell ──────────────────────────────────────────── */
+#app {
+  width: 100%;
+  max-width: 420px;
+}
+
+/* ─── Screen ─────────────────────────────────────────────── */
+.screen { display: none; flex-direction: column; gap: 1.25rem; animation: fadeUp 0.3s ease; }
+.screen.active { display: flex; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Card ───────────────────────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 24px 48px rgba(0,0,0,0.45);
+}
+
+/* ─── Header ─────────────────────────────────────────────── */
+.app-logo {
+  font-size: 2.8rem;
+  text-align: center;
+  margin-bottom: 0.25rem;
+}
+.app-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  text-align: center;
+  background: linear-gradient(135deg, var(--text), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.app-subtitle {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+/* ─── Screen Title ───────────────────────────────────────── */
+.screen-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+.screen-subtitle {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* ─── Nav Buttons (Home) ─────────────────────────────────── */
+.nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 1.3rem 1.5rem;
+  background: var(--accent-dim);
+  border: 1px solid rgba(56,189,248,0.25);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+.nav-btn:hover {
+  background: rgba(56,189,248,0.25);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--accent-glow);
+}
+.nav-btn .icon { font-size: 1.8rem; }
+.nav-btn .label { display: flex; flex-direction: column; }
+.nav-btn .label span:first-child { font-size: 1rem; }
+.nav-btn .label span:last-child { font-size: 0.75rem; color: var(--muted); font-weight: 400; }
+
+/* ─── Form ───────────────────────────────────────────────── */
+.form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+.form-group label { font-size: 0.82rem; font-weight: 500; color: var(--muted); }
+
+.form-control {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 1rem;
+  color: var(--text);
+  font-size: 1rem;
+  font-family: inherit;
+  width: 100%;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.form-control:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(56,189,248,0.15);
+}
+.form-control::placeholder { color: #334155; }
+
+/* ─── Buttons ────────────────────────────────────────────── */
+.btn {
+  width: 100%;
+  padding: 0.95rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex; justify-content: center; align-items: center; gap: 0.5rem;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: #0284c7;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px var(--accent-glow);
+}
+.btn-ghost {
+  background: rgba(255,255,255,0.07);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.btn-ghost:hover { background: rgba(255,255,255,0.12); color: var(--text); }
+
+/* ─── QR Code Container ──────────────────────────────────── */
+#qr-output {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+#qr-output p { font-size: 0.8rem; color: var(--muted); }
+#qrcode-canvas {
+  background: #fff;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  display: inline-block;
+}
+
+/* ─── Status Log ─────────────────────────────────────────── */
+#status-log {
+  background: rgba(0,0,0,0.4);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  font-family: 'Courier New', monospace;
+  font-size: 0.78rem;
+  color: var(--muted);
+  min-height: 100px;
+  max-height: 180px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.6;
+}
+#status-log .success { color: var(--success); }
+#status-log .error   { color: var(--danger); }
+
+/* ─── html5-qrcode overrides ─────────────────────────────── */
+#reader { border: none !important; }
+#reader video { border-radius: var(--radius-sm) !important; }
+#reader button {
+  background: var(--accent) !important;
+  color: white !important;
+  border: none !important;
+  padding: 0.5rem 1rem !important;
+  border-radius: var(--radius-sm) !important;
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+}
+#reader select {
+  background: rgba(0,0,0,0.3) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: 0.4rem !important;
+}
+
+/* ─── Badge ──────────────────────────────────────────────── */
+.badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 99px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid rgba(56,189,248,0.3);
+}

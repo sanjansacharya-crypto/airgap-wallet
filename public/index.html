@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AirGap Wallet | Algorand</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- CDN: algosdk, qrcode.js, html5-qrcode -->
+  <script src="https://cdn.jsdelivr.net/npm/algosdk@2.7.0/dist/browser/algosdk.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ╔══════════════════════════════════╗ -->
+  <!-- ║      SCREEN A — HOME MENU        ║ -->
+  <!-- ╚══════════════════════════════════╝ -->
+  <div id="screen-home" class="screen active">
+    <div class="card" style="text-align:center;">
+      <div class="app-logo">🛡️</div>
+      <h1 class="app-title">AirGap Wallet</h1>
+      <p class="app-subtitle">Offline-first · Algorand Testnet</p>
+    </div>
+
+    <div class="card" style="display:flex; flex-direction:column; gap:1rem;">
+      <button class="nav-btn" onclick="showScreen('screen-send')">
+        <span class="icon">📤</span>
+        <span class="label">
+          <span>Send (Offline)</span>
+          <span>Sign a cheque without internet</span>
+        </span>
+      </button>
+      <button class="nav-btn" onclick="showScreen('screen-receive')">
+        <span class="icon">📥</span>
+        <span class="label">
+          <span>Receive (Online)</span>
+          <span>Scan &amp; broadcast to Testnet</span>
+        </span>
+      </button>
+    </div>
+
+    <p style="text-align:center; color:var(--muted); font-size:0.75rem;">
+      Private keys never leave this device. Relay via localhost:3001.
+    </p>
+  </div>
+
+  <!-- ╔══════════════════════════════════╗ -->
+  <!-- ║    SCREEN B — SEND (OFFLINE)     ║ -->
+  <!-- ╚══════════════════════════════════╝ -->
+  <div id="screen-send" class="screen">
+    <div class="card">
+      <button class="btn btn-ghost" style="width:auto; margin-bottom:1.25rem;" onclick="showScreen('screen-home')">
+        ⬅️ Back
+      </button>
+      <div class="screen-title">Generate Smart Cheque</div>
+      <div class="screen-subtitle" style="margin-bottom:1.5rem;">
+        Signs your payment offline — no internet required.
+        <span class="badge" style="margin-left:0.5rem;">OFFLINE</span>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:1.25rem;">
+        <div class="form-group">
+          <label for="algo-amount">ALGO Amount</label>
+          <input
+            type="number"
+            id="algo-amount"
+            class="form-control"
+            step="0.000001"
+            min="0.000001"
+            placeholder="e.g. 1.5"
+          />
+        </div>
+
+        <button class="btn btn-primary" id="generate-btn" onclick="generateCheque()">
+          ✍️ Generate Smart Cheque
+        </button>
+      </div>
+
+      <!-- QR Output -->
+      <div id="qr-output">
+        <p>Show this QR code to the receiver</p>
+        <div id="qrcode-canvas"></div>
+        <p style="font-size:0.72rem; color:var(--muted); text-align:center; max-width:260px;">
+          This QR encodes a <strong style="color:var(--accent)">signed Algorand transaction</strong>. No private key is included.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ╔══════════════════════════════════╗ -->
+  <!-- ║   SCREEN C — RECEIVE (ONLINE)    ║ -->
+  <!-- ╚══════════════════════════════════╝ -->
+  <div id="screen-receive" class="screen">
+    <div class="card">
+      <button class="btn btn-ghost" style="width:auto; margin-bottom:1.25rem;" onclick="stopScannerAndGoHome()">
+        ⬅️ Back
+      </button>
+      <div class="screen-title">Deposit Cheque</div>
+      <div class="screen-subtitle" style="margin-bottom:1.5rem;">
+        Scan a signed cheque QR and broadcast it to Testnet.
+        <span class="badge" style="margin-left:0.5rem; background:rgba(16,185,129,0.15); color:var(--success); border-color:rgba(16,185,129,0.3);">ONLINE</span>
+      </div>
+
+      <button class="btn btn-primary" id="scan-btn" onclick="startScanner()" style="margin-bottom:1.25rem;">
+        📷 Scan Cheque QR Code
+      </button>
+
+      <!-- Camera feed injected here -->
+      <div id="reader"></div>
+
+      <!-- Status Log -->
+      <div class="form-group" style="margin-top:1.25rem;">
+        <label>Broadcast Log</label>
+        <div id="status-log">Waiting for scan...</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /#app -->
+
+<script>
+// ── View Router ─────────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ── Testnet Constants (offline signing) ──────────────────────────────────────
+const TESTNET_GENESIS_ID   = 'testnet-v1.0';
+const TESTNET_GENESIS_HASH = 'SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=';
+
+// ── Dummy Accounts (generated fresh per page load — PoC only) ───────────────
+const dummySender   = algosdk.generateAccount();
+const dummyReceiver = algosdk.generateAccount();
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+function uint8ArrayToBase64(bytes) {
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return window.btoa(binary);
+}
+
+// ── Screen B: Generate Cheque ────────────────────────────────────────────────
+function generateCheque() {
+  const amountInput = document.getElementById('algo-amount').value;
+  if (!amountInput || parseFloat(amountInput) <= 0) {
+    alert('Please enter a valid ALGO amount.');
+    return;
+  }
+
+  try {
+    const amountMicroalgos = algosdk.algosToMicroalgos(parseFloat(amountInput));
+
+    // Hardcoded offline params — PoC uses fixed rounds
+    const suggestedParams = {
+      fee:        1000,
+      flatFee:    true,
+      firstRound: 40000000,
+      lastRound:  40001000,
+      genesisID:  TESTNET_GENESIS_ID,
+      genesisHash: TESTNET_GENESIS_HASH,
+    };
+
+    // Build transaction
+    const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+      from:            dummySender.addr,
+      to:              dummyReceiver.addr,
+      amount:          amountMicroalgos,
+      suggestedParams: suggestedParams,
+    });
+
+    // Sign offline
+    const signedTxn = algosdk.signTransaction(txn, dummySender.sk);
+
+    // Encode to Base64
+    const payloadBase64 = uint8ArrayToBase64(signedTxn.blob);
+
+    // Render QR code
+    const canvas = document.getElementById('qrcode-canvas');
+    canvas.innerHTML = '';
+    new QRCode(canvas, {
+      text:         payloadBase64,
+      width:        240,
+      height:       240,
+      colorDark:    '#000000',
+      colorLight:   '#ffffff',
+      correctLevel: QRCode.CorrectLevel.L,
+    });
+
+    document.getElementById('qr-output').style.display = 'flex';
+
+  } catch (err) {
+    alert('Signing failed: ' + err.message);
+    console.error(err);
+  }
+}
+
+// ── Screen C: QR Scanner ─────────────────────────────────────────────────────
+let html5Scanner = null;
+
+function startScanner() {
+  document.getElementById('scan-btn').style.display = 'none';
+  document.getElementById('status-log').textContent  = '📷 Initializing camera...\n';
+
+  html5Scanner = new Html5QrcodeScanner(
+    'reader',
+    { fps: 10, qrbox: { width: 260, height: 260 } },
+    false
+  );
+
+  html5Scanner.render(async (decodedText) => {
+    // Stop camera
+    await html5Scanner.clear();
+    document.getElementById('scan-btn').textContent   = '📷 Scan Another';
+    document.getElementById('scan-btn').style.display = 'block';
+
+    logStatus('✅ QR scanned. Decoding payload...');
+    logStatus('📡 Sending to relay server at localhost:3001...\n');
+
+    try {
+      const response = await fetch('http://localhost:3001/api/broadcast', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ signedTxnBase64: decodedText }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        logStatus('══════════════════════════════', 'success');
+        logStatus('🎉 TRANSACTION BROADCAST!',     'success');
+        logStatus(`TxID: ${data.txId}`,            'success');
+        logStatus('══════════════════════════════', 'success');
+      } else {
+        logStatus('══════════════════════════════', 'error');
+        logStatus('❌ BROADCAST REJECTED',          'error');
+        logStatus(`Reason: ${data.error}`,          'error');
+        logStatus('══════════════════════════════', 'error');
+      }
+    } catch (fetchErr) {
+      logStatus('══════════════════════════════', 'error');
+      logStatus('❌ Cannot reach relay server',   'error');
+      logStatus('Is server.js running on :3001?', 'error');
+      logStatus(fetchErr.message,                 'error');
+      logStatus('══════════════════════════════', 'error');
+    }
+
+  }, () => { /* ignore per-frame errors */ });
+}
+
+function stopScannerAndGoHome() {
+  if (html5Scanner) {
+    html5Scanner.clear().catch(() => {});
+    html5Scanner = null;
+  }
+  document.getElementById('scan-btn').style.display = 'block';
+  document.getElementById('reader').innerHTML        = '';
+  showScreen('screen-home');
+}
+
+// ── Status Log helper ────────────────────────────────────────────────────────
+function logStatus(msg, type = '') {
+  const log = document.getElementById('status-log');
+  const line = document.createElement('div');
+  if (type) line.classList.add(type);
+  line.textContent = msg;
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+</script>
+</body>
+</html>
