@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Issue Offline Cheque</title>
+    <link rel="stylesheet" href="assets/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/algosdk@2.7.0/dist/browser/algosdk.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+    <div class="card" style="text-align: center;">
+        <h1 style="color: var(--text-primary); margin-bottom: 1.5rem;">Generate Offline Cheque</h1>
+        
+        <div class="form-group" style="text-align: left;">
+            <label for="amount">ALGO Amount</label>
+            <input type="number" id="amount" class="form-control" step="0.000001" min="0.000001" placeholder="Enter amount" required>
+        </div>
+        
+        <button id="generateBtn" class="btn">Generate Offline Cheque</button>
+        
+        <div id="qrContainer" style="margin-top: 2rem; display: none;">
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">Present this QR code to the receiver</p>
+            <div id="qrcode" style="display: inline-block; background: white; padding: 1rem; border-radius: var(--radius-md);"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Configuration
+    const TESTNET_GENESIS_ID = "testnet-v1.0";
+    const TESTNET_GENESIS_HASH = "SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=";
+    const DUMMY_RECEIVER = algosdk.generateAccount().addr;
+    
+    // Per Requirements: Hardcoded dummy 64-byte key for compilation
+    // NOTE: To make algosdk/nacl sign successfully without throwing cryptographic errors, 
+    // it's best to generate a structurally valid dummy account rather than an array of zeroes.
+    const dummyAccount = algosdk.generateAccount();
+    const DUMMY_SENDER_ADDR = dummyAccount.addr;
+    const DUMMY_SECRET_KEY = dummyAccount.sk; // 64-byte Uint8Array
+
+    function uint8ArrayToBase64(bytes) {
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
+    }
+
+    document.getElementById('generateBtn').addEventListener('click', () => {
+        const amountInput = document.getElementById('amount').value;
+        if (!amountInput) return alert("Please enter an amount");
+
+        const amountMicroalgos = algosdk.algosToMicroalgos(parseFloat(amountInput));
+
+        // Hardcode a generic round window
+        const suggestedParams = {
+            fee: 1000,
+            flatFee: true,
+            firstRound: 40000000, // Arbitrary future/current testnet round
+            lastRound: 40001000,
+            genesisID: TESTNET_GENESIS_ID,
+            genesisHash: TESTNET_GENESIS_HASH
+        };
+
+        try {
+            // Build the transaction
+            const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+                from: DUMMY_SENDER_ADDR,
+                to: DUMMY_RECEIVER,
+                amount: amountMicroalgos,
+                suggestedParams: suggestedParams
+            });
+
+            // Sign Offline
+            const signedTxn = algosdk.signTransaction(txn, DUMMY_SECRET_KEY);
+
+            // Convert to Base64
+            const payloadBase64 = uint8ArrayToBase64(signedTxn.blob);
+
+            // Render QR Code
+            const qrContainer = document.getElementById('qrContainer');
+            const qrcodeDiv = document.getElementById('qrcode');
+            qrcodeDiv.innerHTML = ''; // Clear previous
+            
+            new QRCode(qrcodeDiv, {
+                text: payloadBase64,
+                width: 256,
+                height: 256,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.L
+            });
+
+            qrContainer.style.display = 'block';
+
+        } catch (err) {
+            alert("Translation failed: " + err.message);
+            console.error(err);
+        }
+    });
+
+    // Polyfill buffer
+    window.Buffer = window.Buffer || {
+        from: (str) => new TextEncoder().encode(str)
+    };
+</script>
+
+</body>
+</html>

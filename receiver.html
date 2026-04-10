@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deposit Offline Cheque</title>
+    <link rel="stylesheet" href="assets/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/algosdk@2.7.0/dist/browser/algosdk.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+</head>
+<body>
+
+<div class="container">
+    <div class="card" style="text-align: center;">
+        <h1 style="color: var(--text-primary); margin-bottom: 1.5rem;">Deposit Cheque</h1>
+        
+        <button id="scanBtn" class="btn">Scan Cheque</button>
+        
+        <div id="reader" style="margin-top: 1.5rem; display: none;"></div>
+
+        <div class="form-group" style="margin-top: 1.5rem; text-align: left;">
+            <label for="statusBox">Status</label>
+            <textarea id="statusBox" class="form-control" readonly style="min-height: 120px; font-family: monospace; font-size: 0.8rem; background: rgba(0,0,0,0.4);"></textarea>
+        </div>
+    </div>
+</div>
+
+<script>
+    const algodClient = new algosdk.Algodv2('', 'https://testnet-api.algonode.cloud', '');
+    let html5QrcodeScanner = null;
+    const statusBox = document.getElementById('statusBox');
+
+    function logStatus(msg) {
+        statusBox.value += msg + "\n";
+        statusBox.scrollTop = statusBox.scrollHeight;
+    }
+
+    function base64ToUint8Array(base64) {
+        const raw = window.atob(base64);
+        const result = new Uint8Array(new ArrayBuffer(raw.length));
+        for (let i = 0; i < raw.length; i++) {
+            result[i] = raw.charCodeAt(i);
+        }
+        return result;
+    }
+
+    document.getElementById('scanBtn').addEventListener('click', () => {
+        document.getElementById('reader').style.display = 'block';
+        document.getElementById('scanBtn').style.display = 'none';
+        
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+        logStatus("Initializing camera...");
+
+        html5QrcodeScanner.render(async (decodedText) => {
+            // Stop scanning once we get a code
+            html5QrcodeScanner.clear();
+            document.getElementById('reader').style.display = 'none';
+            document.getElementById('scanBtn').style.display = 'inline-block';
+            document.getElementById('scanBtn').textContent = 'Scan Another';
+            
+            logStatus("Scan successful! Processing Base64 payload...");
+
+            try {
+                // Decode Back to Uint8Array
+                const signedTxnBytes = base64ToUint8Array(decodedText);
+                
+                logStatus("Broadcasting to Algorand Testnet...");
+
+                // Broadcast
+                const { txId } = await algodClient.sendRawTransaction(signedTxnBytes).do();
+                
+                logStatus("\n✅ SUCCESS!");
+                logStatus("Transaction ID: " + txId);
+                
+            } catch (err) {
+                logStatus("\n❌ ERROR: " + err.message);
+                if (err.message.includes('dead')) {
+                    logStatus("Hint: The hardcoded rounds for the transaction have expired.");
+                } else if (err.message.includes('overspend')) {
+                    logStatus("Hint: The dummy sender account has no funds.");
+                }
+            }
+            
+        }, (err) => {
+            // Ignore scan errors while seeking QRs
+        });
+    });
+</script>
+
+</body>
+</html>
