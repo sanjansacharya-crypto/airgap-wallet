@@ -8,8 +8,20 @@
   <script src="https://cdn.jsdelivr.net/npm/algosdk@2.7.0/dist/browser/algosdk.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <!-- No-flash theme init: runs before render -->
+  <script>
+    (function() {
+      var t = localStorage.getItem('airgap_theme') || 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
 </head>
 <body>
+<!-- Floating dark/light mode toggle -->
+<button id="theme-toggle" onclick="toggleTheme()" title="Toggle dark / light mode" aria-label="Toggle theme">
+  <span id="theme-icon">🌙</span>
+</button>
+
 <div id="app">
 
   <!-- ╔══════════════════════╗ -->
@@ -237,6 +249,25 @@
 </div><!-- /#app -->
 
 <script>
+// ─────────────────────────────────────────────────────────────────
+// Dark / Light Mode Toggle
+// ─────────────────────────────────────────────────────────────────
+function toggleTheme() {
+  const html    = document.documentElement;
+  const isDark  = html.getAttribute('data-theme') === 'dark';
+  const next    = isDark ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  document.getElementById('theme-icon').textContent = next === 'dark' ? '☀️' : '🌙';
+  localStorage.setItem('airgap_theme', next);
+}
+
+// Set correct icon on page load
+(function() {
+  const saved = localStorage.getItem('airgap_theme') || 'light';
+  const icon  = document.getElementById('theme-icon');
+  if (icon) icon.textContent = saved === 'dark' ? '☀️' : '🌙';
+})();
+
 // ─────────────────────────────────────────────────────────────────
 // Algorand Client (Direct to AlgoNode — no backend required)
 // ─────────────────────────────────────────────────────────────────
