@@ -217,10 +217,10 @@ function startScanner() {
     document.getElementById('scan-btn').style.display = 'block';
 
     logStatus('✅ QR scanned. Decoding payload...');
-    logStatus('📡 Sending to relay server at localhost:3001...\n');
+    logStatus('📡 Broadcasting via relay → /api/broadcast\n');
 
     try {
-      const response = await fetch('http://localhost:3001/api/broadcast', {
+      const response = await fetch('/api/broadcast', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ signedTxnBase64: decodedText }),

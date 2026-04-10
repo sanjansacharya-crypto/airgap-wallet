@@ -55,12 +55,13 @@ app.get('/api/status', async (req, res) => {
 });
 
 // ─── Start ─────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log('');
   console.log('  🛡️  AirGap Wallet Relay Server');
   console.log(`  ──────────────────────────────`);
-  console.log(`  🌐  Frontend → http://localhost:${PORT}`);
-  console.log(`  📡  API      → http://localhost:${PORT}/api/broadcast`);
+  console.log(`  🌐  Local    → http://localhost:${PORT}`);
+  console.log(`  📱  Mobile   → http://10.33.4.78:${PORT}`);
+  console.log(`  📡  API      → http://10.33.4.78:${PORT}/api/broadcast`);
   console.log(`  🔗  Network  → Algorand Testnet (AlgoNode)`);
   console.log('');
 });
