@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AirGap Wallet | Algorand</title>
   <link rel="stylesheet" href="style.css" />
-  <!-- CDN: algosdk, qrcode.js, html5-qrcode -->
   <script src="https://cdn.jsdelivr.net/npm/algosdk@2.7.0/dist/browser/algosdk.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -144,45 +143,43 @@
 </div><!-- /#app -->
 
 <script>
-// ── View Router ─────────────────────────────────────────────────────────────
+// ── Algorand Client (Direct — no backend required) ───────────────────────────
+const algodClient = new algosdk.Algodv2('', 'https://testnet-api.algonode.cloud', '');
+
+// ── View Router ──────────────────────────────────────────────────────────────
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
 
-// ── Network Status Check ─────────────────────────────────────────────────────
+// ── Network Status Check (direct, no backend) ────────────────────────────────
 async function checkNetworkStatus() {
   const dot  = document.getElementById('status-dot');
   const text = document.getElementById('status-text');
 
-  // Pulsing grey while checking
-  dot.style.background  = 'var(--muted)';
-  dot.style.animation   = 'none';
-  text.textContent      = 'Checking network...';
+  dot.style.background = 'var(--muted)';
+  dot.style.animation  = 'none';
+  text.textContent     = 'Checking network...';
+  text.style.color     = 'var(--muted)';
 
   try {
-    const res  = await fetch('/api/status');
-    const data = await res.json();
+    const status = await algodClient.status().do();
+    const round  = status['last-round'];
 
-    if (data.online) {
-      dot.style.background = 'var(--success)';
-      dot.style.boxShadow  = '0 0 0 0 rgba(16,185,129,0.6)';
-      dot.style.animation  = 'pulse-green 1.8s ease-out infinite';
-      text.style.color     = 'var(--success)';
-      text.textContent     = `Connected · Round #${data.lastRound.toLocaleString()}`;
-    } else {
-      throw new Error('Node reported offline');
-    }
+    dot.style.background = 'var(--success)';
+    dot.style.boxShadow  = '0 0 0 0 rgba(16,185,129,0.6)';
+    dot.style.animation  = 'pulse-green 1.8s ease-out infinite';
+    text.style.color     = 'var(--success)';
+    text.textContent     = `Connected · Round #${round.toLocaleString()}`;
   } catch {
-    dot.style.background   = 'var(--danger)';
-    dot.style.boxShadow    = 'none';
-    dot.style.animation    = 'none';
-    text.style.color       = 'var(--danger)';
-    text.textContent       = 'Cannot reach Algorand Testnet';
+    dot.style.background = 'var(--danger)';
+    dot.style.boxShadow  = 'none';
+    dot.style.animation  = 'none';
+    text.style.color     = 'var(--danger)';
+    text.textContent     = 'Cannot reach Algorand Testnet';
   }
 }
 
-// Check on load, then every 10 seconds
 checkNetworkStatus();
 setInterval(checkNetworkStatus, 10000);
 
@@ -190,18 +187,25 @@ setInterval(checkNetworkStatus, 10000);
 const TESTNET_GENESIS_ID   = 'testnet-v1.0';
 const TESTNET_GENESIS_HASH = 'SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=';
 
-// ── Dummy Accounts (generated fresh per page load — PoC only) ───────────────
+// ── Dummy Accounts (generated fresh per page load — PoC only) ────────────────
 const dummySender   = algosdk.generateAccount();
 const dummyReceiver = algosdk.generateAccount();
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function uint8ArrayToBase64(bytes) {
   let binary = '';
   for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
   return window.btoa(binary);
 }
 
-// ── Screen B: Generate Cheque ────────────────────────────────────────────────
+function base64ToUint8Array(base64) {
+  const raw = window.atob(base64);
+  const arr = new Uint8Array(new ArrayBuffer(raw.length));
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+
+// ── Screen B: Generate Cheque ─────────────────────────────────────────────────
 function generateCheque() {
   const amountInput = document.getElementById('algo-amount').value;
   if (!amountInput || parseFloat(amountInput) <= 0) {
@@ -212,17 +216,15 @@ function generateCheque() {
   try {
     const amountMicroalgos = algosdk.algosToMicroalgos(parseFloat(amountInput));
 
-    // Hardcoded offline params — PoC uses fixed rounds
     const suggestedParams = {
-      fee:        1000,
-      flatFee:    true,
-      firstRound: 40000000,
-      lastRound:  40001000,
-      genesisID:  TESTNET_GENESIS_ID,
+      fee:         1000,
+      flatFee:     true,
+      firstRound:  40000000,
+      lastRound:   40001000,
+      genesisID:   TESTNET_GENESIS_ID,
       genesisHash: TESTNET_GENESIS_HASH,
     };
 
-    // Build transaction
     const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
       from:            dummySender.addr,
       to:              dummyReceiver.addr,
@@ -230,13 +232,9 @@ function generateCheque() {
       suggestedParams: suggestedParams,
     });
 
-    // Sign offline
-    const signedTxn = algosdk.signTransaction(txn, dummySender.sk);
-
-    // Encode to Base64
+    const signedTxn    = algosdk.signTransaction(txn, dummySender.sk);
     const payloadBase64 = uint8ArrayToBase64(signedTxn.blob);
 
-    // Render QR code
     const canvas = document.getElementById('qrcode-canvas');
     canvas.innerHTML = '';
     new QRCode(canvas, {
@@ -256,12 +254,13 @@ function generateCheque() {
   }
 }
 
-// ── Screen C: QR Scanner ─────────────────────────────────────────────────────
+// ── Screen C: QR Scanner + Direct Broadcast ───────────────────────────────────
 let html5Scanner = null;
 
 function startScanner() {
   document.getElementById('scan-btn').style.display = 'none';
-  document.getElementById('status-log').textContent  = '📷 Initializing camera...\n';
+  document.getElementById('status-log').textContent  = '';
+  logStatus('📷 Initializing camera...');
 
   html5Scanner = new Html5QrcodeScanner(
     'reader',
@@ -270,43 +269,35 @@ function startScanner() {
   );
 
   html5Scanner.render(async (decodedText) => {
-    // Stop camera
     await html5Scanner.clear();
     document.getElementById('scan-btn').textContent   = '📷 Scan Another';
     document.getElementById('scan-btn').style.display = 'block';
 
     logStatus('✅ QR scanned. Decoding payload...');
-    logStatus('📡 Broadcasting via relay → /api/broadcast\n');
+    logStatus('📡 Sending directly to Algorand Testnet...\n');
 
     try {
-      const response = await fetch('/api/broadcast', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ signedTxnBase64: decodedText }),
-      });
+      // Step 1: Convert Base64 → Uint8Array
+      const decodedArray = base64ToUint8Array(decodedText);
 
-      const data = await response.json();
+      // Step 2: Send directly to AlgoNode (no backend)
+      const sendTx = await algodClient.sendRawTransaction(decodedArray).do();
 
-      if (data.success) {
-        logStatus('══════════════════════════════', 'success');
-        logStatus('🎉 TRANSACTION BROADCAST!',     'success');
-        logStatus(`TxID: ${data.txId}`,            'success');
-        logStatus('══════════════════════════════', 'success');
-      } else {
-        logStatus('══════════════════════════════', 'error');
-        logStatus('❌ BROADCAST REJECTED',          'error');
-        logStatus(`Reason: ${data.error}`,          'error');
-        logStatus('══════════════════════════════', 'error');
-      }
-    } catch (fetchErr) {
+      logStatus('══════════════════════════════', 'success');
+      logStatus('🎉 TRANSACTION BROADCAST!',     'success');
+      logStatus(`TxID: ${sendTx.txId}`,          'success');
+      logStatus('══════════════════════════════', 'success');
+
+    } catch (err) {
+      const reason = err.response?.body?.message || err.message || 'Unknown error';
+
       logStatus('══════════════════════════════', 'error');
-      logStatus('❌ Cannot reach relay server',   'error');
-      logStatus('Is server.js running on :3001?', 'error');
-      logStatus(fetchErr.message,                 'error');
+      logStatus('❌ BROADCAST REJECTED',          'error');
+      logStatus(`Reason: ${reason}`,              'error');
       logStatus('══════════════════════════════', 'error');
     }
 
-  }, () => { /* ignore per-frame errors */ });
+  }, () => { /* ignore per-frame scan errors */ });
 }
 
 function stopScannerAndGoHome() {
@@ -319,9 +310,9 @@ function stopScannerAndGoHome() {
   showScreen('screen-home');
 }
 
-// ── Status Log helper ────────────────────────────────────────────────────────
+// ── Status Log Helper ─────────────────────────────────────────────────────────
 function logStatus(msg, type = '') {
-  const log = document.getElementById('status-log');
+  const log  = document.getElementById('status-log');
   const line = document.createElement('div');
   if (type) line.classList.add(type);
   line.textContent = msg;
