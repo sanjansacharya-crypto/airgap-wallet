@@ -17,9 +17,26 @@
   <!-- ╚══════════════════════╝ -->
   <div id="screen-home" class="screen active">
     <div class="card" style="text-align:center;">
-      <div class="app-logo">🛡️</div>
+
+      <!-- Animated Mandala Logo -->
+      <div class="mandala-container">
+        <div class="mandala-ring outer"></div>
+        <div class="mandala-ring middle"></div>
+        <div class="mandala-ring inner"></div>
+        <span class="logo-symbol">☸️</span>
+      </div>
+
       <h1 class="app-title">AirGap Wallet</h1>
-      <p class="app-subtitle">Offline-first · Algorand Testnet</p>
+
+      <!-- Decorative Divider -->
+      <div class="deco-banner">
+        <div class="deco-line-h"></div>
+        <span class="deco-glyph">◆ ✸ ◆</span>
+        <div class="deco-line-h"></div>
+      </div>
+
+      <p class="app-subtitle">अल्गोरंड ଟ୆ସ्ଟନ୆ଟ · Offline-first · Secure</p>
+
       <div id="network-status" class="status-pill">
         <span id="status-dot" class="status-dot"></span>
         <span id="status-text">Checking network...</span>
@@ -41,7 +58,7 @@
           <span>Scan &amp; broadcast to Testnet</span>
         </span>
       </button>
-      <button class="nav-btn" onclick="showDepositScreen()" style="background:rgba(16,185,129,0.1); border-color:rgba(16,185,129,0.25);">
+      <button class="nav-btn" onclick="showDepositScreen()" style="background:rgba(26,122,78,0.10); border-color:rgba(26,122,78,0.28);">
         <span class="icon">💳</span>
         <span class="label">
           <span>Deposit Funds</span>
@@ -58,8 +75,8 @@
       </div>
     </div>
 
-    <p style="text-align:center; color:var(--muted); font-size:0.75rem;">
-      Private keys never leave this device.
+    <p style="text-align:center; color:var(--muted); font-size:0.72rem; letter-spacing:0.04em;">
+      ◆ जनता का बटुआ ◆ &nbsp;·&nbsp; Private keys never leave this device.
     </p>
   </div>
 
