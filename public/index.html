@@ -10,44 +10,24 @@
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 </head>
 <body>
-
 <div id="app">
 
-  <!-- ╔══════════════════════════════════╗ -->
-  <!-- ║      SCREEN A — HOME MENU        ║ -->
-  <!-- ╚══════════════════════════════════╝ -->
+  <!-- ╔══════════════════════╗ -->
+  <!-- ║   SCREEN A — HOME    ║ -->
+  <!-- ╚══════════════════════╝ -->
   <div id="screen-home" class="screen active">
     <div class="card" style="text-align:center;">
       <div class="app-logo">🛡️</div>
       <h1 class="app-title">AirGap Wallet</h1>
       <p class="app-subtitle">Offline-first · Algorand Testnet</p>
-
-      <!-- Network Status Pill -->
-      <div id="network-status" style="
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-top: 1rem;
-        padding: 0.4rem 0.9rem;
-        border-radius: 99px;
-        background: rgba(0,0,0,0.25);
-        border: 1px solid var(--border);
-        font-size: 0.78rem;
-        color: var(--muted);
-      ">
-        <span id="status-dot" style="
-          width: 8px; height: 8px;
-          border-radius: 50%;
-          background: var(--muted);
-          display: inline-block;
-          flex-shrink: 0;
-        "></span>
+      <div id="network-status" class="status-pill">
+        <span id="status-dot" class="status-dot"></span>
         <span id="status-text">Checking network...</span>
       </div>
     </div>
 
     <div class="card" style="display:flex; flex-direction:column; gap:1rem;">
-      <button class="nav-btn" onclick="showScreen('screen-send')">
+      <button class="nav-btn" onclick="showScreen('screen-send'); refreshContactDropdown()">
         <span class="icon">📤</span>
         <span class="label">
           <span>Send (Offline)</span>
@@ -61,6 +41,14 @@
           <span>Scan &amp; broadcast to Testnet</span>
         </span>
       </button>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+        <button class="nav-btn-mini" onclick="showScreen('screen-history'); renderHistory()">
+          📋 History
+        </button>
+        <button class="nav-btn-mini" onclick="showScreen('screen-contacts'); renderContacts()">
+          👥 Contacts
+        </button>
+      </div>
     </div>
 
     <p style="text-align:center; color:var(--muted); font-size:0.75rem;">
@@ -68,14 +56,12 @@
     </p>
   </div>
 
-  <!-- ╔══════════════════════════════════╗ -->
-  <!-- ║    SCREEN B — SEND (OFFLINE)     ║ -->
-  <!-- ╚══════════════════════════════════╝ -->
+  <!-- ╔══════════════════════╗ -->
+  <!-- ║   SCREEN B — SEND    ║ -->
+  <!-- ╚══════════════════════╝ -->
   <div id="screen-send" class="screen">
     <div class="card">
-      <button class="btn btn-ghost" style="width:auto; margin-bottom:1.25rem;" onclick="showScreen('screen-home')">
-        ⬅️ Back
-      </button>
+      <button class="btn btn-ghost" style="width:auto; margin-bottom:1.25rem;" onclick="showScreen('screen-home')">⬅️ Back</button>
       <div class="screen-title">Generate Smart Cheque</div>
       <div class="screen-subtitle" style="margin-bottom:1.5rem;">
         Signs your payment offline — no internet required.
@@ -83,27 +69,33 @@
       </div>
 
       <div style="display:flex; flex-direction:column; gap:1.25rem;">
+
+        <!-- Contact Picker -->
         <div class="form-group">
-          <label for="algo-amount">ALGO Amount</label>
-          <input
-            type="number"
-            id="algo-amount"
-            class="form-control"
-            step="0.000001"
-            min="0.000001"
-            placeholder="e.g. 1.5"
-          />
+          <label for="contact-select">Pay To</label>
+          <select id="contact-select" class="form-control" onchange="onContactSelect()">
+            <option value="__manual__">✏️ Enter address manually</option>
+          </select>
+        </div>
+        <div class="form-group" id="manual-address-group">
+          <label for="manual-address">Receiver Address</label>
+          <input type="text" id="manual-address" class="form-control" placeholder="Paste Algorand address..." />
         </div>
 
-        <button class="btn btn-primary" id="generate-btn" onclick="generateCheque()">
-          ✍️ Generate Smart Cheque
-        </button>
+        <!-- Amount -->
+        <div class="form-group">
+          <label for="algo-amount">ALGO Amount</label>
+          <input type="number" id="algo-amount" class="form-control" step="0.000001" min="0.000001" placeholder="e.g. 1.5" />
+        </div>
+
+        <button class="btn btn-primary" onclick="generateCheque()">✍️ Generate Smart Cheque</button>
       </div>
 
       <!-- QR Output -->
       <div id="qr-output">
         <p>Show this QR code to the receiver</p>
         <div id="qrcode-canvas"></div>
+        <button class="btn btn-secondary" onclick="saveQrAsImage()">💾 Save Cheque as Image</button>
         <p style="font-size:0.72rem; color:var(--muted); text-align:center; max-width:260px;">
           This QR encodes a <strong style="color:var(--accent)">signed Algorand transaction</strong>. No private key is included.
         </p>
@@ -111,14 +103,12 @@
     </div>
   </div>
 
-  <!-- ╔══════════════════════════════════╗ -->
-  <!-- ║   SCREEN C — RECEIVE (ONLINE)    ║ -->
-  <!-- ╚══════════════════════════════════╝ -->
+  <!-- ╔══════════════════════╗ -->
+  <!-- ║  SCREEN C — RECEIVE  ║ -->
+  <!-- ╚══════════════════════╝ -->
   <div id="screen-receive" class="screen">
     <div class="card">
-      <button class="btn btn-ghost" style="width:auto; margin-bottom:1.25rem;" onclick="stopScannerAndGoHome()">
-        ⬅️ Back
-      </button>
+      <button class="btn btn-ghost" style="width:auto; margin-bottom:1.25rem;" onclick="stopScannerAndGoHome()">⬅️ Back</button>
       <div class="screen-title">Deposit Cheque</div>
       <div class="screen-subtitle" style="margin-bottom:1.5rem;">
         Scan a signed cheque QR and broadcast it to Testnet.
@@ -128,11 +118,7 @@
       <button class="btn btn-primary" id="scan-btn" onclick="startScanner()" style="margin-bottom:1.25rem;">
         📷 Scan Cheque QR Code
       </button>
-
-      <!-- Camera feed injected here -->
       <div id="reader"></div>
-
-      <!-- Status Log -->
       <div class="form-group" style="margin-top:1.25rem;">
         <label>Broadcast Log</label>
         <div id="status-log">Waiting for scan...</div>
@@ -140,32 +126,74 @@
     </div>
   </div>
 
+  <!-- ╔══════════════════════╗ -->
+  <!-- ║  SCREEN D — HISTORY  ║ -->
+  <!-- ╚══════════════════════╝ -->
+  <div id="screen-history" class="screen">
+    <div class="card">
+      <button class="btn btn-ghost" style="width:auto; margin-bottom:1.25rem;" onclick="showScreen('screen-home')">⬅️ Back</button>
+      <div class="screen-title">Transaction History</div>
+      <div class="screen-subtitle" style="margin-bottom:1.5rem;">Past receipts stored on this device.</div>
+      <div id="history-list"></div>
+    </div>
+  </div>
+
+  <!-- ╔════════════════════════╗ -->
+  <!-- ║  SCREEN E — CONTACTS   ║ -->
+  <!-- ╚════════════════════════╝ -->
+  <div id="screen-contacts" class="screen">
+    <div class="card">
+      <button class="btn btn-ghost" style="width:auto; margin-bottom:1.25rem;" onclick="showScreen('screen-home')">⬅️ Back</button>
+      <div class="screen-title">Address Book</div>
+      <div class="screen-subtitle" style="margin-bottom:1.5rem;">Save contacts for quick, offline payments.</div>
+
+      <!-- Add Contact Form -->
+      <div class="sub-card">
+        <div style="font-weight:600; font-size:0.9rem; margin-bottom:1rem; color:var(--accent);">+ Add New Contact</div>
+        <div class="form-group">
+          <label for="new-contact-name">Name</label>
+          <input type="text" id="new-contact-name" class="form-control" placeholder="e.g. Bob's Coffee Shop" />
+        </div>
+        <div class="form-group">
+          <label for="new-contact-address">Algorand Address</label>
+          <input type="text" id="new-contact-address" class="form-control" placeholder="Paste Algorand address..." />
+        </div>
+        <button class="btn btn-primary" style="margin-top:0.5rem;" onclick="addContact()">Save Contact</button>
+      </div>
+
+      <div id="contacts-list" style="margin-top:1.5rem; display:flex; flex-direction:column; gap:0.75rem;"></div>
+    </div>
+  </div>
+
 </div><!-- /#app -->
 
 <script>
-// ── Algorand Client (Direct — no backend required) ───────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// Algorand Client (Direct to AlgoNode — no backend required)
+// ─────────────────────────────────────────────────────────────────
 const algodClient = new algosdk.Algodv2('', 'https://testnet-api.algonode.cloud', '');
 
-// ── View Router ──────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// View Router
+// ─────────────────────────────────────────────────────────────────
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
 }
 
-// ── Network Status Check (direct, no backend) ────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// Network Status (direct AlgoNode call)
+// ─────────────────────────────────────────────────────────────────
 async function checkNetworkStatus() {
   const dot  = document.getElementById('status-dot');
   const text = document.getElementById('status-text');
-
   dot.style.background = 'var(--muted)';
   dot.style.animation  = 'none';
-  text.textContent     = 'Checking network...';
   text.style.color     = 'var(--muted)';
-
+  text.textContent     = 'Checking network...';
   try {
     const status = await algodClient.status().do();
     const round  = status['last-round'];
-
     dot.style.background = 'var(--success)';
     dot.style.boxShadow  = '0 0 0 0 rgba(16,185,129,0.6)';
     dot.style.animation  = 'pulse-green 1.8s ease-out infinite';
@@ -179,39 +207,125 @@ async function checkNetworkStatus() {
     text.textContent     = 'Cannot reach Algorand Testnet';
   }
 }
-
 checkNetworkStatus();
 setInterval(checkNetworkStatus, 10000);
 
-// ── Testnet Constants (offline signing) ──────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// localStorage Helpers
+// ─────────────────────────────────────────────────────────────────
+const LS = { contacts: 'airgap_contacts', history: 'airgap_history' };
+
+function getContacts()          { return JSON.parse(localStorage.getItem(LS.contacts) || '[]'); }
+function saveContacts(c)        { localStorage.setItem(LS.contacts, JSON.stringify(c)); }
+function getHistory()           { return JSON.parse(localStorage.getItem(LS.history) || '[]'); }
+function addToHistory(entry)    {
+  const h = getHistory();
+  h.unshift(entry);
+  localStorage.setItem(LS.history, JSON.stringify(h.slice(0, 50)));
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Address Book Logic
+// ─────────────────────────────────────────────────────────────────
+function addContact() {
+  const name    = document.getElementById('new-contact-name').value.trim();
+  const address = document.getElementById('new-contact-address').value.trim();
+  if (!name || !address) return alert('Please fill in both name and address.');
+  if (!algosdk.isValidAddress(address)) return alert('Invalid Algorand address. Please check and try again.');
+
+  const contacts = getContacts();
+  contacts.push({ id: Date.now(), name, address });
+  saveContacts(contacts);
+  document.getElementById('new-contact-name').value    = '';
+  document.getElementById('new-contact-address').value = '';
+  renderContacts();
+}
+
+function deleteContact(id) {
+  saveContacts(getContacts().filter(c => c.id !== id));
+  renderContacts();
+  refreshContactDropdown();
+}
+
+function renderContacts() {
+  const list     = document.getElementById('contacts-list');
+  const contacts = getContacts();
+  if (!contacts.length) {
+    list.innerHTML = '<p style="color:var(--muted); font-size:0.85rem; text-align:center;">No contacts saved yet.</p>';
+    return;
+  }
+  list.innerHTML = contacts.map(c => `
+    <div class="contact-item">
+      <div class="contact-info">
+        <div class="contact-name">${escHtml(c.name)}</div>
+        <div class="contact-addr">${c.address}</div>
+      </div>
+      <button class="btn-icon-delete" onclick="deleteContact(${c.id})" aria-label="Delete contact">🗑️</button>
+    </div>
+  `).join('');
+}
+
+function refreshContactDropdown() {
+  const sel      = document.getElementById('contact-select');
+  const contacts = getContacts();
+  sel.innerHTML  = '<option value="__manual__">✏️ Enter address manually</option>';
+  contacts.forEach(c => {
+    const opt   = document.createElement('option');
+    opt.value   = c.address;
+    opt.textContent = `${c.name} (${c.address.slice(0,8)}…${c.address.slice(-4)})`;
+    sel.appendChild(opt);
+  });
+  onContactSelect();
+}
+
+function onContactSelect() {
+  const val   = document.getElementById('contact-select').value;
+  const group = document.getElementById('manual-address-group');
+  group.style.display = val === '__manual__' ? 'flex' : 'none';
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Testnet Constants (offline signing)
+// ─────────────────────────────────────────────────────────────────
 const TESTNET_GENESIS_ID   = 'testnet-v1.0';
 const TESTNET_GENESIS_HASH = 'SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=';
 
-// ── Dummy Accounts (generated fresh per page load — PoC only) ────────────────
-const dummySender   = algosdk.generateAccount();
-const dummyReceiver = algosdk.generateAccount();
+// Dummy sender (generated once per session — PoC only)
+const dummySender = algosdk.generateAccount();
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────
 function uint8ArrayToBase64(bytes) {
-  let binary = '';
-  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-  return window.btoa(binary);
+  let b = '';
+  for (let i = 0; i < bytes.byteLength; i++) b += String.fromCharCode(bytes[i]);
+  return window.btoa(b);
 }
-
-function base64ToUint8Array(base64) {
-  const raw = window.atob(base64);
-  const arr = new Uint8Array(new ArrayBuffer(raw.length));
+function base64ToUint8Array(b64) {
+  const raw = window.atob(b64);
+  const arr = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
   return arr;
 }
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
-// ── Screen B: Generate Cheque ─────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// Screen B: Generate Cheque
+// ─────────────────────────────────────────────────────────────────
 function generateCheque() {
   const amountInput = document.getElementById('algo-amount').value;
-  if (!amountInput || parseFloat(amountInput) <= 0) {
-    alert('Please enter a valid ALGO amount.');
-    return;
-  }
+  if (!amountInput || parseFloat(amountInput) <= 0) return alert('Please enter a valid ALGO amount.');
+
+  // Determine receiver address
+  const selVal  = document.getElementById('contact-select').value;
+  const receiver = selVal === '__manual__'
+    ? document.getElementById('manual-address').value.trim()
+    : selVal;
+
+  if (!receiver) return alert('Please select a contact or enter a receiver address.');
+  if (!algosdk.isValidAddress(receiver)) return alert('Invalid receiver address. Please check and try again.');
 
   try {
     const amountMicroalgos = algosdk.algosToMicroalgos(parseFloat(amountInput));
@@ -227,12 +341,12 @@ function generateCheque() {
 
     const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
       from:            dummySender.addr,
-      to:              dummyReceiver.addr,
+      to:              receiver,
       amount:          amountMicroalgos,
       suggestedParams: suggestedParams,
     });
 
-    const signedTxn    = algosdk.signTransaction(txn, dummySender.sk);
+    const signedTxn     = algosdk.signTransaction(txn, dummySender.sk);
     const payloadBase64 = uint8ArrayToBase64(signedTxn.blob);
 
     const canvas = document.getElementById('qrcode-canvas');
@@ -254,7 +368,21 @@ function generateCheque() {
   }
 }
 
-// ── Screen C: QR Scanner + Direct Broadcast ───────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// Feature 1: Save QR as Image
+// ─────────────────────────────────────────────────────────────────
+function saveQrAsImage() {
+  const canvas = document.querySelector('#qrcode-canvas canvas');
+  if (!canvas) return alert('Please generate a cheque first.');
+  const link      = document.createElement('a');
+  link.download   = `airgap-cheque-${Date.now()}.png`;
+  link.href       = canvas.toDataURL('image/png');
+  link.click();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Screen C: QR Scanner + Direct Broadcast + History save
+// ─────────────────────────────────────────────────────────────────
 let html5Scanner = null;
 
 function startScanner() {
@@ -263,9 +391,7 @@ function startScanner() {
   logStatus('📷 Initializing camera...');
 
   html5Scanner = new Html5QrcodeScanner(
-    'reader',
-    { fps: 10, qrbox: { width: 260, height: 260 } },
-    false
+    'reader', { fps: 10, qrbox: { width: 260, height: 260 } }, false
   );
 
   html5Scanner.render(async (decodedText) => {
@@ -276,41 +402,80 @@ function startScanner() {
     logStatus('✅ QR scanned. Decoding payload...');
     logStatus('📡 Sending directly to Algorand Testnet...\n');
 
-    try {
-      // Step 1: Convert Base64 → Uint8Array
-      const decodedArray = base64ToUint8Array(decodedText);
+    const signedBytes = base64ToUint8Array(decodedText);
 
-      // Step 2: Send directly to AlgoNode (no backend)
-      const sendTx = await algodClient.sendRawTransaction(decodedArray).do();
+    // Try to extract amount from the signed transaction payload
+    let amountAlgo = null;
+    try {
+      const decoded       = algosdk.decodeSignedTransaction(signedBytes);
+      const microalgos    = decoded.txn.amount;
+      amountAlgo          = microalgos !== undefined
+        ? (Number(microalgos) / 1_000_000)
+        : null;
+    } catch (_) { /* amount unknown — non-payment tx */ }
+
+    try {
+      // Broadcast directly to AlgoNode
+      const sendTx = await algodClient.sendRawTransaction(signedBytes).do();
+      const txId   = sendTx.txId;
+
+      // Feature 2: Save to localStorage history
+      addToHistory({
+        txId,
+        amount:    amountAlgo,
+        date:      new Date().toLocaleString(),
+        timestamp: Date.now(),
+      });
 
       logStatus('══════════════════════════════', 'success');
       logStatus('🎉 TRANSACTION BROADCAST!',     'success');
-      logStatus(`TxID: ${sendTx.txId}`,          'success');
+      logStatus(`TxID: ${txId}`,                 'success');
+      if (amountAlgo !== null) logStatus(`Amount: ${amountAlgo} ALGO`, 'success');
       logStatus('══════════════════════════════', 'success');
 
     } catch (err) {
       const reason = err.response?.body?.message || err.message || 'Unknown error';
-
       logStatus('══════════════════════════════', 'error');
       logStatus('❌ BROADCAST REJECTED',          'error');
       logStatus(`Reason: ${reason}`,              'error');
       logStatus('══════════════════════════════', 'error');
     }
 
-  }, () => { /* ignore per-frame scan errors */ });
+  }, () => { /* ignore per-frame errors */ });
 }
 
 function stopScannerAndGoHome() {
-  if (html5Scanner) {
-    html5Scanner.clear().catch(() => {});
-    html5Scanner = null;
-  }
+  if (html5Scanner) { html5Scanner.clear().catch(() =>{}); html5Scanner = null; }
   document.getElementById('scan-btn').style.display = 'block';
   document.getElementById('reader').innerHTML        = '';
   showScreen('screen-home');
 }
 
-// ── Status Log Helper ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// Feature 2: Render Transaction History
+// ─────────────────────────────────────────────────────────────────
+function renderHistory() {
+  const list    = document.getElementById('history-list');
+  const history = getHistory();
+  if (!history.length) {
+    list.innerHTML = '<p style="color:var(--muted); font-size:0.85rem; text-align:center;">No transactions yet. Broadcast a cheque to see your receipts.</p>';
+    return;
+  }
+  list.innerHTML = history.map(h => `
+    <div class="history-item">
+      <div class="history-header">
+        <span class="history-amount">${h.amount !== null && h.amount !== undefined ? h.amount + ' ALGO' : 'Unknown Amount'}</span>
+        <span class="history-date">${h.date}</span>
+      </div>
+      <div class="history-txid">${h.txId}</div>
+      <a href="https://testnet.algoexplorer.io/tx/${h.txId}" target="_blank" class="history-link">View on Explorer ↗</a>
+    </div>
+  `).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Status Log Helper
+// ─────────────────────────────────────────────────────────────────
 function logStatus(msg, type = '') {
   const log  = document.getElementById('status-log');
   const line = document.createElement('div');
@@ -319,6 +484,11 @@ function logStatus(msg, type = '') {
   log.appendChild(line);
   log.scrollTop = log.scrollHeight;
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────────────────
+refreshContactDropdown();
 </script>
 </body>
 </html>

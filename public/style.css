@@ -249,3 +249,172 @@ html, body {
   color: var(--accent);
   border: 1px solid rgba(56,189,248,0.3);
 }
+
+/* ─── Status Pill ────────────────────────────────────────── */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 99px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ─── Mini Nav Buttons (History / Contacts) ──────────────── */
+.nav-btn-mini {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.9rem;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.nav-btn-mini:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+/* ─── Secondary Button ───────────────────────────────────── */
+.btn-secondary {
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1.2rem;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.btn-secondary:hover {
+  background: rgba(255,255,255,0.14);
+  border-color: rgba(255,255,255,0.2);
+}
+
+/* ─── Sub-card (nested section) ─────────────────────────── */
+.sub-card {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ─── Contact Item ───────────────────────────────────────── */
+.contact-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 1rem;
+  transition: border-color 0.2s;
+}
+.contact-item:hover { border-color: rgba(56,189,248,0.3); }
+.contact-info { flex: 1; min-width: 0; }
+.contact-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+}
+.contact-addr {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+}
+.btn-icon-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+  flex-shrink: 0;
+  padding: 0.25rem;
+}
+.btn-icon-delete:hover { opacity: 1; }
+
+/* ─── History Item ───────────────────────────────────────── */
+.history-item {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  transition: border-color 0.2s;
+}
+.history-item:hover { border-color: rgba(56,189,248,0.3); }
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.history-amount {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.history-date {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.history-txid {
+  font-family: 'Courier New', monospace;
+  font-size: 0.72rem;
+  color: var(--muted);
+  word-break: break-all;
+  margin-bottom: 0.5rem;
+}
+.history-link {
+  font-size: 0.78rem;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+.history-link:hover { text-decoration: underline; }
+
+/* ─── QR Save button spacing ─────────────────────────────── */
+#qr-output {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 1rem;
+}
+#qrcode-canvas {
+  background: #fff;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  display: inline-block;
+}
