@@ -42,14 +42,14 @@
       <button class="nav-btn" onclick="showScreen('screen-send'); refreshContactDropdown()">
         <span class="icon">📤</span>
         <span class="label">
-          <span>Send (Offline)</span>
+          <span>Send</span>
           <span>Sign a cheque without internet</span>
         </span>
       </button>
       <button class="nav-btn" onclick="showScreen('screen-receive')">
         <span class="icon">📥</span>
         <span class="label">
-          <span>Receive (Online)</span>
+          <span>Receive</span>
           <span>Scan &amp; broadcast to Testnet</span>
         </span>
       </button>
@@ -84,7 +84,6 @@
       <div class="screen-title">Generate Smart Cheque</div>
       <div class="screen-subtitle" style="margin-bottom:1.5rem;">
         Signs your payment offline — no internet required.
-        <span class="badge" style="margin-left:0.5rem;">OFFLINE</span>
       </div>
 
       <div style="display:flex; flex-direction:column; gap:1.25rem;">
@@ -159,7 +158,6 @@
       <div class="screen-title">Deposit Cheque</div>
       <div class="screen-subtitle" style="margin-bottom:1.5rem;">
         Scan a signed cheque QR and broadcast it to Testnet.
-        <span class="badge" style="margin-left:0.5rem; background:rgba(16,185,129,0.15); color:var(--success); border-color:rgba(16,185,129,0.3);">ONLINE</span>
       </div>
 
       <button class="btn btn-primary" id="scan-btn" onclick="startScanner()" style="margin-bottom:1.25rem;">
