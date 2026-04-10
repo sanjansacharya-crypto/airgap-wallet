@@ -82,11 +82,39 @@
           <label for="contact-select">Pay To</label>
           <select id="contact-select" class="form-control" onchange="onContactSelect()">
             <option value="__manual__">✏️ Enter address manually</option>
+            <option value="__scan__">📷 Scan Receiver's QR Code</option>
+            <option value="__clipboard__">📋 Paste from Clipboard</option>
+            <option value="__self__">🧪 Self (Test Transaction)</option>
           </select>
         </div>
+
+        <!-- Manual input (shown only for __manual__) -->
         <div class="form-group" id="manual-address-group">
           <label for="manual-address">Receiver Address</label>
           <input type="text" id="manual-address" class="form-control" placeholder="Paste Algorand address..." />
+        </div>
+
+        <!-- Resolved address display (scan / paste / self / contact) -->
+        <div id="resolved-address-group" style="display:none;">
+          <div class="form-group">
+            <label id="resolved-label">Receiver Address</label>
+            <div id="resolved-address" style="
+              background:rgba(255,255,255,0.04);
+              border:1px solid var(--border);
+              border-radius:var(--radius-sm);
+              padding:0.72rem 0.9rem;
+              font-family:'Menlo','Courier New',monospace;
+              font-size:0.72rem;
+              word-break:break-all;
+              color:var(--text-dim);
+            "></div>
+          </div>
+        </div>
+
+        <!-- Inline address QR scanner (shown for __scan__) -->
+        <div id="addr-scanner-container" style="display:none;">
+          <p style="font-size:0.75rem;color:var(--muted);margin-bottom:0.5rem;">Point camera at the receiver's wallet address QR</p>
+          <div id="addr-reader"></div>
         </div>
 
         <!-- Amount -->
@@ -309,20 +337,94 @@ function renderContacts() {
 function refreshContactDropdown() {
   const sel      = document.getElementById('contact-select');
   const contacts = getContacts();
-  sel.innerHTML  = '<option value="__manual__">✏️ Enter address manually</option>';
-  contacts.forEach(c => {
-    const opt   = document.createElement('option');
-    opt.value   = c.address;
-    opt.textContent = `${c.name} (${c.address.slice(0,8)}…${c.address.slice(-4)})`;
-    sel.appendChild(opt);
-  });
+  sel.innerHTML  = `
+    <option value="__manual__">✏️ Enter address manually</option>
+    <option value="__scan__">📷 Scan Receiver's QR Code</option>
+    <option value="__clipboard__">📋 Paste from Clipboard</option>
+    <option value="__self__">🧪 Self (Test Transaction)</option>
+  `;
+  if (contacts.length) {
+    const grp   = document.createElement('optgroup');
+    grp.label   = '── Saved Contacts ──';
+    contacts.forEach(c => {
+      const opt       = document.createElement('option');
+      opt.value       = c.address;
+      opt.textContent = `👤 ${c.name} (${c.address.slice(0,6)}…${c.address.slice(-4)})`;
+      grp.appendChild(opt);
+    });
+    sel.appendChild(grp);
+  }
   onContactSelect();
 }
 
+let addressScanner = null;
+
 function onContactSelect() {
-  const val   = document.getElementById('contact-select').value;
-  const group = document.getElementById('manual-address-group');
-  group.style.display = val === '__manual__' ? 'flex' : 'none';
+  const val           = document.getElementById('contact-select').value;
+  const manualGroup   = document.getElementById('manual-address-group');
+  const resolvedGroup = document.getElementById('resolved-address-group');
+  const scanContainer = document.getElementById('addr-scanner-container');
+
+  // Clear previous scanner
+  if (addressScanner) {
+    addressScanner.clear().catch(() => {});
+    addressScanner = null;
+  }
+  manualGroup.style.display   = 'none';
+  resolvedGroup.style.display = 'none';
+  scanContainer.style.display = 'none';
+
+  if (val === '__manual__') {
+    manualGroup.style.display = 'flex';
+  } else if (val === '__scan__') {
+    scanContainer.style.display = 'block';
+    startAddressScanner();
+  } else if (val === '__clipboard__') {
+    pasteFromClipboard();
+  } else if (val === '__self__') {
+    const dummyReceiver = algosdk.generateAccount();
+    setResolvedAddress(dummyReceiver.addr, 'Self — generated test account');
+  } else {
+    // Saved contact
+    setResolvedAddress(val, 'Saved Contact');
+  }
+}
+
+function setResolvedAddress(addr, label) {
+  document.getElementById('resolved-label').textContent  = label || 'Receiver Address';
+  document.getElementById('resolved-address').textContent = addr;
+  document.getElementById('resolved-address-group').style.display = 'block';
+}
+
+function startAddressScanner() {
+  addressScanner = new Html5QrcodeScanner(
+    'addr-reader', { fps: 10, qrbox: { width: 220, height: 220 } }, false
+  );
+  addressScanner.render(async (scanned) => {
+    await addressScanner.clear();
+    addressScanner = null;
+    document.getElementById('addr-scanner-container').style.display = 'none';
+    if (!algosdk.isValidAddress(scanned.trim())) {
+      alert('Scanned QR is not a valid Algorand address.');
+      document.getElementById('contact-select').value = '__manual__';
+      onContactSelect();
+      return;
+    }
+    setResolvedAddress(scanned.trim(), '📷 Scanned Address');
+  }, () => {});
+}
+
+async function pasteFromClipboard() {
+  try {
+    const text = (await navigator.clipboard.readText()).trim();
+    if (!text) throw new Error('Clipboard empty');
+    if (!algosdk.isValidAddress(text)) throw new Error('Not a valid Algorand address');
+    setResolvedAddress(text, '📋 Pasted from Clipboard');
+  } catch (e) {
+    alert('Could not read clipboard: ' + e.message + '\nPlease use "Enter manually" instead.');
+    document.getElementById('contact-select').value = '__manual__';
+    onContactSelect();
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -359,11 +461,16 @@ function generateCheque() {
   const amountInput = document.getElementById('algo-amount').value;
   if (!amountInput || parseFloat(amountInput) <= 0) return alert('Please enter a valid ALGO amount.');
 
-  // Determine receiver address
-  const selVal  = document.getElementById('contact-select').value;
-  const receiver = selVal === '__manual__'
-    ? document.getElementById('manual-address').value.trim()
-    : selVal;
+  // Determine receiver address from whichever mode is active
+  const selVal = document.getElementById('contact-select').value;
+  let receiver;
+  if (selVal === '__manual__') {
+    receiver = document.getElementById('manual-address').value.trim();
+  } else if (['__scan__', '__clipboard__', '__self__'].includes(selVal)) {
+    receiver = document.getElementById('resolved-address').textContent.trim();
+  } else {
+    receiver = selVal; // saved contact address
+  }
 
   if (!receiver) return alert('Please select a contact or enter a receiver address.');
   if (!algosdk.isValidAddress(receiver)) return alert('Invalid receiver address. Please check and try again.');
