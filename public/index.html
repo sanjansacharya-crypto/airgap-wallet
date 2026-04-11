@@ -241,6 +241,27 @@
         " onclick="copyDepositAddress()" title="Click to copy"></div>
         <p style="font-size:0.72rem; color:var(--muted);">Tap address to copy · QR encodes this address only</p>
       </div>
+
+      <!-- ── Live Account Balance ── -->
+      <div style="margin-top:1.25rem; border-top:1px solid var(--border); padding-top:1.25rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+          <div style="font-size:0.72rem; font-weight:600; color:var(--muted); letter-spacing:0.06em; text-transform:uppercase;">Wallet Balance</div>
+          <button class="btn-secondary" onclick="refreshDepositBalance()" id="balance-refresh-btn" style="font-size:0.75rem; padding:0.3rem 0.7rem;">🔄 Refresh</button>
+        </div>
+        <div id="deposit-balance-display" style="
+          background:rgba(99,102,241,0.07);
+          border:1px solid rgba(99,102,241,0.18);
+          border-radius:var(--radius-sm);
+          padding:1rem 1.25rem;
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+        ">
+          <span id="deposit-balance-amount" style="font-size:1.55rem; font-weight:800; color:var(--text); letter-spacing:-0.025em;">—</span>
+          <span style="font-size:0.8rem; font-weight:600; color:var(--muted);">ALGO</span>
+        </div>
+        <p id="deposit-balance-status" style="font-size:0.7rem; color:var(--muted); margin-top:0.5rem; text-align:center;">Fetching balance…</p>
+      </div>
     </div>
   </div>
 
@@ -277,6 +298,34 @@ const algodClient = new algosdk.Algodv2('', 'https://testnet-api.algonode.cloud'
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  if (id === 'screen-deposit') refreshDepositBalance();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Deposit Screen: Live Balance Fetcher
+// ─────────────────────────────────────────────────────────────────
+async function refreshDepositBalance() {
+  const amountEl = document.getElementById('deposit-balance-amount');
+  const statusEl = document.getElementById('deposit-balance-status');
+  const btn      = document.getElementById('balance-refresh-btn');
+  if (!amountEl) return;
+
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Loading…'; }
+  statusEl.textContent = 'Fetching from Algorand Testnet…';
+
+  try {
+    const info    = await algodClient.accountInformation(dummySender.addr).do();
+    const bal     = Number(info.amount) / 1_000_000;
+    const pending = Number(info['pending-rewards'] || 0) / 1_000_000;
+    amountEl.textContent        = bal.toFixed(6);
+    amountEl.style.color        = bal > 0 ? 'var(--accent)' : 'var(--muted)';
+    statusEl.textContent        = `Updated · ${new Date().toLocaleTimeString()}${pending > 0 ? ` · +${pending.toFixed(6)} ALGO pending rewards` : ''}`;
+  } catch (e) {
+    amountEl.textContent = '—';
+    statusEl.textContent = 'Could not fetch balance. Check network.';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Refresh'; }
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -622,6 +671,29 @@ function startScanner() {
       logStatus(`TxID: ${txId}`,                 'success');
       if (amountAlgo !== null) logStatus(`Amount: ${amountAlgo} ALGO`, 'success');
       logStatus('══════════════════════════════', 'success');
+
+      // Fetch and display the receiver's updated balance
+      try {
+        const decodedTx = algosdk.decodeSignedTransaction(signedBytes);
+        const toAddr    = algosdk.encodeAddress(decodedTx.txn.to.publicKey);
+        logStatus('⏳ Fetching receiver balance…');
+        // Poll up to 4 times (~8 s) waiting for the node to confirm
+        let balFetched = false;
+        for (let attempt = 0; attempt < 4; attempt++) {
+          await new Promise(r => setTimeout(r, 2000));
+          try {
+            const info    = await algodClient.accountInformation(toAddr).do();
+            const balAlgo = (Number(info.amount) / 1_000_000).toFixed(6);
+            logStatus('──────────────────────────────');
+            logStatus(`💰 Receiver: ${toAddr.slice(0,8)}…${toAddr.slice(-4)}`);
+            logStatus(`   New Balance: ${balAlgo} ALGO`, 'success');
+            logStatus('──────────────────────────────');
+            balFetched = true;
+            break;
+          } catch (_) { /* node not ready yet, retry */ }
+        }
+        if (!balFetched) logStatus('ℹ️ Could not fetch receiver balance (may still be propagating).');
+      } catch (_) { /* non-payment or decode failed */ }
 
     } catch (err) {
       const reason = err.response?.body?.message || err.message || 'Unknown error';
