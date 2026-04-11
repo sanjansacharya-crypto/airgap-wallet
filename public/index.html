@@ -146,6 +146,15 @@
           This QR encodes a <strong style="color:var(--gold)">signed Algorand transaction</strong>. No private key is included.
         </p>
       </div>
+
+      <!-- Sender Transaction History -->
+      <div style="margin-top:2rem; border-top:1px solid var(--border); padding-top:1.5rem;">
+        <div style="font-size:0.85rem; font-weight:700; margin-bottom:1rem; color:var(--text); display:flex; justify-content:space-between; align-items:center;">
+          <span>Recent Receipts</span>
+          <span style="font-size:0.7rem; font-weight:500; color:var(--muted);">Stored locally</span>
+        </div>
+        <div id="send-history-list"></div>
+      </div>
     </div>
   </div>
 
@@ -299,6 +308,7 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   if (id === 'screen-deposit') refreshDepositBalance();
+  if (id === 'screen-history' || id === 'screen-send') renderHistory();
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -731,22 +741,25 @@ function stopScannerAndGoHome() {
 // Feature 2: Render Transaction History
 // ─────────────────────────────────────────────────────────────────
 function renderHistory() {
-  const list    = document.getElementById('history-list');
+  const lists   = [document.getElementById('history-list'), document.getElementById('send-history-list')].filter(Boolean);
   const history = getHistory();
-  if (!history.length) {
-    list.innerHTML = '<p style="color:var(--muted); font-size:0.85rem; text-align:center;">No transactions yet. Broadcast a cheque to see your receipts.</p>';
-    return;
-  }
-  list.innerHTML = history.map(h => `
-    <div class="history-item">
-      <div class="history-header">
-        <span class="history-amount">${h.amount !== null && h.amount !== undefined ? h.amount + ' ALGO' : 'Unknown Amount'}</span>
-        <span class="history-date">${h.date}</span>
+  
+  lists.forEach(list => {
+    if (!history.length) {
+      list.innerHTML = '<p style="color:var(--muted); font-size:0.85rem; text-align:center; background:rgba(0,0,0,0.2); padding:1rem; border-radius:8px;">No transactions yet.</p>';
+      return;
+    }
+    list.innerHTML = history.map(h => `
+      <div class="history-item">
+        <div class="history-header">
+          <span class="history-amount">${h.amount !== null && h.amount !== undefined ? h.amount + ' ALGO' : 'Unknown Amount'}</span>
+          <span class="history-date">${h.date}</span>
+        </div>
+        <div class="history-txid">${h.txId}</div>
+        <a href="https://testnet.algoexplorer.io/tx/${h.txId}" target="_blank" class="history-link">View on Explorer ↗</a>
       </div>
-      <div class="history-txid">${h.txId}</div>
-      <a href="https://testnet.algoexplorer.io/tx/${h.txId}" target="_blank" class="history-link">View on Explorer ↗</a>
-    </div>
-  `).join('');
+    `).join('');
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────
