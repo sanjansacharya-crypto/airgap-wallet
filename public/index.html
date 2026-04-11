@@ -511,8 +511,16 @@ async function pasteFromClipboard() {
 const TESTNET_GENESIS_ID   = 'testnet-v1.0';
 const TESTNET_GENESIS_HASH = 'SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=';
 
-// Dummy sender (generated once per session — PoC only)
-const dummySender = algosdk.generateAccount();
+// Persistent development sender (so you don't lose test funds on page refresh)
+const dummySender = (function() {
+  const saved = localStorage.getItem('airgap_dummy_mnemonic');
+  if (saved) {
+    try { return algosdk.mnemonicToSecretKey(saved); } catch (e) { console.warn('Failed to load mnemonic', e); }
+  }
+  const acc = algosdk.generateAccount();
+  localStorage.setItem('airgap_dummy_mnemonic', algosdk.secretKeyToMnemonic(acc.sk));
+  return acc;
+})();
 
 // ─────────────────────────────────────────────────────────────────
 // Helpers
@@ -696,7 +704,13 @@ function startScanner() {
       } catch (_) { /* non-payment or decode failed */ }
 
     } catch (err) {
-      const reason = err.response?.body?.message || err.message || 'Unknown error';
+      let reason = err.response?.body?.message || err.message || 'Unknown error';
+      
+      // Provide a clearer explanation for Algorand's minimum balance rules
+      if (reason.includes('overspend')) {
+        reason = `Insufficient Funds.\n\nAlgorand requires every account to maintain a Minimum Balance of 0.1 ALGO (100,000 microAlgos), plus the 0.001 ALGO network fee. You cannot send your entire balance.\n\nTechnical details:\n${reason}`;
+      }
+      
       logStatus('══════════════════════════════', 'error');
       logStatus('❌ BROADCAST REJECTED',          'error');
       logStatus(`Reason: ${reason}`,              'error');
