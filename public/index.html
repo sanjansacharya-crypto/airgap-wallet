@@ -486,7 +486,7 @@ function escHtml(str) {
 // ─────────────────────────────────────────────────────────────────
 // Screen B: Generate Cheque
 // ─────────────────────────────────────────────────────────────────
-function generateCheque() {
+async function generateCheque() {
   const amountInput = document.getElementById('algo-amount').value;
   if (!amountInput || parseFloat(amountInput) <= 0) return alert('Please enter a valid ALGO amount.');
 
@@ -507,14 +507,26 @@ function generateCheque() {
   try {
     const amountMicroalgos = algosdk.algosToMicroalgos(parseFloat(amountInput));
 
-    const suggestedParams = {
-      fee:         1000,
-      flatFee:     true,
-      firstRound:  40000000,
-      lastRound:   40001000,
-      genesisID:   TESTNET_GENESIS_ID,
-      genesisHash: TESTNET_GENESIS_HASH,
-    };
+    // ── Fetch live network params so firstValid/lastValid are correct ──
+    // algosdk v2 uses firstValid/lastValid (not firstRound/lastRound).
+    // Using hardcoded params caused the "msgpack decode error" because
+    // algosdk v2 silently ignored the wrong field names, producing
+    // undefined round values that Algorand's node rejected.
+    let suggestedParams;
+    try {
+      suggestedParams = await algodClient.getTransactionParams().do();
+    } catch (_) {
+      // Fallback for truly offline use — use v2 field names explicitly
+      suggestedParams = {
+        fee:         1000,
+        flatFee:     true,
+        firstValid:  1,
+        lastValid:   1000,
+        genesisID:   TESTNET_GENESIS_ID,
+        genesisHash: TESTNET_GENESIS_HASH,
+        minFee:      1000,
+      };
+    }
 
     const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
       from:            dummySender.addr,
@@ -544,6 +556,7 @@ function generateCheque() {
     console.error(err);
   }
 }
+
 
 // ─────────────────────────────────────────────────────────────────
 // Feature 1: Save QR as Image
