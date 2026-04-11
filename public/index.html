@@ -661,14 +661,18 @@ function startScanner() {
 
     const signedBytes = base64ToUint8Array(decodedText);
 
-    // Try to extract amount from the signed transaction payload
+    // Try to extract amount and fee from the signed transaction payload
     let amountAlgo = null;
+    let feeAlgo = null;
     try {
       const decoded       = algosdk.decodeSignedTransaction(signedBytes);
       const microalgos    = decoded.txn.amount;
       amountAlgo          = microalgos !== undefined
         ? (Number(microalgos) / 1_000_000)
         : null;
+      feeAlgo             = decoded.txn.fee !== undefined
+        ? (Number(decoded.txn.fee) / 1_000_000)
+        : 0.001; // basic fallback
     } catch (_) { /* amount unknown — non-payment tx */ }
 
     try {
@@ -680,6 +684,7 @@ function startScanner() {
       addToHistory({
         txId,
         amount:    amountAlgo,
+        fee:       feeAlgo,
         date:      new Date().toLocaleString(),
         timestamp: Date.now(),
       });
@@ -749,16 +754,23 @@ function renderHistory() {
       list.innerHTML = '<p style="color:var(--muted); font-size:0.85rem; text-align:center; background:rgba(0,0,0,0.2); padding:1rem; border-radius:8px;">No transactions yet.</p>';
       return;
     }
-    list.innerHTML = history.map(h => `
-      <div class="history-item">
-        <div class="history-header">
-          <span class="history-amount">${h.amount !== null && h.amount !== undefined ? h.amount + ' ALGO' : 'Unknown Amount'}</span>
-          <span class="history-date">${h.date}</span>
+    list.innerHTML = history.map(h => {
+      const amtStr = h.amount !== null && h.amount !== undefined ? h.amount + ' ALGO' : 'Unknown Amount';
+      const feeStr = h.fee !== null && h.fee !== undefined ? '- ' + h.fee + ' ALGO fee' : '';
+      return `
+        <div class="history-item">
+          <div class="history-header">
+            <span class="history-amount">
+              ${amtStr}
+              <span style="font-size:0.65rem; color:var(--rose); font-weight:600; margin-left:0.3rem;">${feeStr}</span>
+            </span>
+            <span class="history-date">${h.date}</span>
+          </div>
+          <div class="history-txid">${h.txId}</div>
+          <a href="https://testnet.algoexplorer.io/tx/${h.txId}" target="_blank" class="history-link">View on Explorer ↗</a>
         </div>
-        <div class="history-txid">${h.txId}</div>
-        <a href="https://testnet.algoexplorer.io/tx/${h.txId}" target="_blank" class="history-link">View on Explorer ↗</a>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   });
 }
 
