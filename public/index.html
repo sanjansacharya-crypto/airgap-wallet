@@ -134,7 +134,17 @@
           <input type="number" id="algo-amount" class="form-control" step="0.000001" min="0.000001" placeholder="e.g. 1.5" />
         </div>
 
-        <button class="btn btn-primary" onclick="generateCheque()">✍️ Generate Smart Cheque</button>
+        <!-- Offline Sync Round -->
+        <div class="form-group" style="margin-top:0.5rem; background:rgba(0,0,0,0.2); padding:0.85rem; border-radius:var(--radius-sm); border:1px dashed var(--border);">
+          <label for="offline-round" style="color:var(--amber); display:flex; justify-content:space-between;">
+            <span>Current Sync Round (Offline Mode)</span>
+            <span style="font-weight:400; font-size:0.65rem; color:var(--muted); text-transform:none;">Optional</span>
+          </label>
+          <input type="number" id="offline-round" class="form-control" placeholder="e.g. 50400123" style="margin-top:0.35rem;" />
+          <p style="font-size:0.65rem; color:var(--muted); margin-top:0.4rem;">If this device is offline, enter the Current Network Round from your online device here to sign immediately.</p>
+        </div>
+
+        <button class="btn btn-primary" style="margin-top:0.5rem;" onclick="generateCheque()">✍️ Generate Smart Cheque</button>
       </div>
 
       <!-- QR Output -->
@@ -325,11 +335,15 @@ async function refreshDepositBalance() {
 
   try {
     const info    = await algodClient.accountInformation(dummySender.addr).do();
+    const status  = await algodClient.status().do();
     const bal     = Number(info.amount) / 1_000_000;
     const pending = Number(info['pending-rewards'] || 0) / 1_000_000;
     amountEl.textContent        = bal.toFixed(6);
     amountEl.style.color        = bal > 0 ? 'var(--accent)' : 'var(--muted)';
-    statusEl.textContent        = `Updated · ${new Date().toLocaleTimeString()}${pending > 0 ? ` · +${pending.toFixed(6)} ALGO pending rewards` : ''}`;
+    
+    statusEl.innerHTML          = `Updated · ${new Date().toLocaleTimeString()}
+      <br><span style="color:var(--amber); font-weight:600;">Current Round: ${status['last-round']}</span>
+      ${pending > 0 ? `<br>+${pending.toFixed(6)} ALGO pending rewards` : ''}`;
   } catch (e) {
     amountEl.textContent = '—';
     statusEl.textContent = 'Could not fetch balance. Check network.';
@@ -573,26 +587,30 @@ async function generateCheque() {
 
   try {
     const amountMicroalgos = algosdk.algosToMicroalgos(parseFloat(amountInput));
+    const offlineRoundInput = document.getElementById('offline-round').value;
 
-    // ── Fetch live network params so firstValid/lastValid are correct ──
-    // algosdk v2 uses firstValid/lastValid (not firstRound/lastRound).
-    // Using hardcoded params caused the "msgpack decode error" because
-    // algosdk v2 silently ignored the wrong field names, producing
-    // undefined round values that Algorand's node rejected.
     let suggestedParams;
-    try {
-      suggestedParams = await algodClient.getTransactionParams().do();
-    } catch (_) {
-      // Fallback for truly offline use — use v2 field names explicitly
+    
+    // ── Offline Mode Bypass ──
+    if (offlineRoundInput && parseInt(offlineRoundInput) > 0) {
+      const currentRound = parseInt(offlineRoundInput);
       suggestedParams = {
         fee:         1000,
         flatFee:     true,
-        firstValid:  1,
-        lastValid:   1000,
+        firstValid:  currentRound,
+        lastValid:   currentRound + 1000,
         genesisID:   TESTNET_GENESIS_ID,
         genesisHash: TESTNET_GENESIS_HASH,
         minFee:      1000,
       };
+    } else {
+      // ── Online Mode Fetch ──
+      try {
+        suggestedParams = await algodClient.getTransactionParams().do();
+      } catch (_) {
+        alert('You appear to be offline. To generate a cheque without internet, please fill in the "Current Sync Round" field.');
+        return;
+      }
     }
 
     const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
